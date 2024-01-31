@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import {
   Typography,
   Col,
@@ -12,33 +12,144 @@ import {
   Select,
   Input,
 } from 'antd'
+import { sesi1, sesi2 } from './data'
 
 const { Text } = Typography
 
 function App() {
   const [open, setOpen] = useState(false)
   const [confirmLoading, setConfirmLoading] = useState(false)
+  const [selectedAntrian, setSelectedAntrian] = useState(null)
+  const [antrianData, setAntrianData] = useState(sesi1)
+  const [loadings, setLoadings] = useState([])
+
   const showModal = () => {
     setOpen(true)
   }
-  const handleOk = () => {
-    setConfirmLoading(true)
-    setTimeout(() => {
-      setOpen(false)
-      setConfirmLoading(false)
-    }, 2000)
-  }
+
   const handleCancel = () => {
     setOpen(false)
   }
 
-  const onFinish = (values) => {
-    console.log('Success:', values)
+  const handleAntrianClick = (antrian) => {
+    setSelectedAntrian(antrian)
+    console.log(selectedAntrian)
   }
-
   const onFinishFailed = (errorInfo) => {
     console.log('Failed:', errorInfo)
   }
+
+  const statusColors = {
+    tersedia: '#FFF',
+    terpilih: 'darkcyan',
+    batal: 'red',
+    default: '#B8B8B8',
+  }
+
+  const statusText = {
+    tersedia: '#000',
+    terpilih: '#FFF',
+    batal: '#FFF',
+    default: '#000',
+  }
+
+  const handleOk = (values) => {
+    console.log('Form values:', values)
+
+    setConfirmLoading(true)
+
+    const updatedAntrianData = [...antrianData]
+
+    const selectedAntrianIndex = updatedAntrianData.findIndex(
+      (antrian) => antrian.number === selectedAntrian.number
+    )
+
+    console.log('Selected antrian index:', selectedAntrianIndex)
+
+    updatedAntrianData[selectedAntrianIndex] = {
+      ...selectedAntrian,
+      name: values.username,
+      poli: values.select,
+      dokter: values.doctor,
+      phone: values.phone,
+      status: 'tidak tersedia',
+    }
+
+    console.log('Updated antrianData before storing:', updatedAntrianData)
+
+    try {
+      localStorage.setItem('antrianData', JSON.stringify(updatedAntrianData))
+    } catch (error) {
+      console.error('Error saving to localStorage:', error)
+    }
+
+    setAntrianData(updatedAntrianData)
+
+    setTimeout(() => {
+      setOpen(false)
+      setConfirmLoading(false)
+      window.location.reload()
+    }, 1500)
+  }
+
+  const handleCancelAntrian = (index) => {
+    setLoadings((prevLoadings) => {
+      const newLoadings = [...prevLoadings]
+      newLoadings[index] = true
+      return newLoadings
+    })
+
+    setTimeout(() => {
+      setLoadings((prevLoadings) => {
+        const newLoadings = [...prevLoadings]
+        newLoadings[index] = false
+        return newLoadings
+      })
+      const updatedAntrianData = [...antrianData]
+
+      const selectedAntrianIndex = updatedAntrianData.findIndex(
+        (antrian) => antrian.number === selectedAntrian.number
+      )
+
+      console.log('Selected antrian index:', selectedAntrianIndex)
+
+      updatedAntrianData[selectedAntrianIndex] = {
+        ...selectedAntrian,
+        name: '',
+        poli: '',
+        dokter: '',
+        phone: '',
+        status: 'batal',
+      }
+
+      console.log('Updated antrianData before storing:', updatedAntrianData)
+
+      try {
+        localStorage.setItem('antrianData', JSON.stringify(updatedAntrianData))
+      } catch (error) {
+        console.error('Error saving to localStorage:', error)
+      }
+
+      setAntrianData(updatedAntrianData)
+
+      window.location.reload()
+    }, 1500)
+  }
+
+  useEffect(() => {
+    const storedData = localStorage.getItem('antrianData')
+    console.log('Stored data from localStorage:', storedData)
+
+    if (storedData) {
+      try {
+        const parsedData = JSON.parse(storedData)
+        setAntrianData(parsedData)
+      } catch (error) {
+        console.error('Error parsing localStorage data:', error)
+      }
+    }
+  }, [])
+
   return (
     <>
       <p style={{ textAlign: 'center', fontSize: '1.2em', fontWeight: '600' }}>
@@ -61,24 +172,49 @@ function App() {
             ></div>
           </Flex>
           <Row gutter={[35, 25]} style={{ marginTop: '1em' }}>
-            <Col span={3}>
-              <Flex
-                align="center"
-                justify="center"
-                vertical
-                style={{
-                  backgroundColor: '#b8b8b8',
-                  boxShadow: '0 2px 10px 1px rgba(92, 85, 85, 0.2)',
-                  borderRadius: '0.5em',
-                  paddingBlock: '1em',
-                }}
+            {antrianData.map((antrian, index) => (
+              <Col
+                span={3}
+                key={index}
+                onClick={() => handleAntrianClick(antrian)}
               >
-                <p style={{ margin: '0', fontWeight: '700', fontSize: '2em' }}>
-                  01
-                </p>
-                <p style={{ margin: '0', fontWeight: '400' }}>08:00</p>
-              </Flex>
-            </Col>
+                <Flex
+                  align="center"
+                  justify="center"
+                  vertical
+                  style={{
+                    backgroundColor:
+                      statusColors[antrian.status] || statusColors['default'],
+                    boxShadow: '0 2px 10px 1px rgba(92, 85, 85, 0.2)',
+                    borderRadius: '0.5em',
+                    paddingBlock: '1em',
+                    cursor: 'pointer',
+                  }}
+                >
+                  <p
+                    style={{
+                      margin: '0',
+                      fontWeight: '700',
+                      fontSize: '2em',
+                      color:
+                        statusText[antrian.status] || statusText['default'],
+                    }}
+                  >
+                    {antrian.number}
+                  </p>
+                  <p
+                    style={{
+                      margin: '0',
+                      fontWeight: '400',
+                      color:
+                        statusText[antrian.status] || statusText['default'],
+                    }}
+                  >
+                    {antrian.time}
+                  </p>
+                </Flex>
+              </Col>
+            ))}
           </Row>
           <Flex align="center" style={{ marginTop: '1em' }}>
             <Text strong style={{ color: 'darkCyan', whiteSpace: 'nowrap' }}>
@@ -114,39 +250,77 @@ function App() {
             </Col>
           </Row>
         </Col>
+
         <Col span={8}>
-          <Row style={{ color: 'red', marginBottom: '1em' }}>
-            <Col span={7}>Waktu</Col>
-            <Col span={1}>:</Col>
-            <Col span={8}>05:00</Col>
-          </Row>
-          <Row style={{ marginBottom: '1em' }}>
-            <Col span={7}>Nama</Col>
-            <Col span={1}>:</Col>
-            <Col span={8}>Fawaz</Col>
-          </Row>
-          <Row style={{ marginBottom: '1em' }}>
-            <Col span={7}>Poli</Col>
-            <Col span={1}>:</Col>
-            <Col span={8}>Poli Umum</Col>
-          </Row>
-          <Row style={{ marginBottom: '1em' }}>
-            <Col span={7}>Dokter</Col>
-            <Col span={1}>:</Col>
-            <Col span={8}>Kamar 2 | dr. shinta</Col>
-          </Row>
-          <Row style={{ marginBottom: '1em' }}>
-            <Col span={7}>No. Handphone</Col>
-            <Col span={1}>:</Col>
-            <Col span={8}>080000000</Col>
-          </Row>
-          <Row style={{ marginBottom: '1em' }}>
-            <Col span={7}>No. Antrian</Col>
-            <Col span={1}>:</Col>
-            <Col span={8} style={{ color: 'darkCyan' }}>
-              40
-            </Col>
-          </Row>
+          {selectedAntrian ? (
+            <>
+              <Row style={{ color: 'red', marginBottom: '1em' }}>
+                <Col span={7}>Waktu</Col>
+                <Col span={1}>:</Col>
+                <Col span={8}>{selectedAntrian.time}</Col>
+              </Row>
+              <Row style={{ marginBottom: '1em' }}>
+                <Col span={7}>Nama</Col>
+                <Col span={1}>:</Col>
+                <Col span={8}>{selectedAntrian.name}</Col>
+              </Row>
+              <Row style={{ marginBottom: '1em' }}>
+                <Col span={7}>Poli</Col>
+                <Col span={1}>:</Col>
+                <Col span={8}>{selectedAntrian.poli}</Col>
+              </Row>
+              <Row style={{ marginBottom: '1em' }}>
+                <Col span={7}>Dokter</Col>
+                <Col span={1}>:</Col>
+                <Col span={8}>{selectedAntrian.dokter}</Col>
+              </Row>
+              <Row style={{ marginBottom: '1em' }}>
+                <Col span={7}>No. Handphone</Col>
+                <Col span={1}>:</Col>
+                <Col span={8}>{selectedAntrian.phone}</Col>
+              </Row>
+              <Row style={{ marginBottom: '1em' }}>
+                <Col span={7}>No. Antrian</Col>
+                <Col span={1}>:</Col>
+                <Col span={8} style={{ color: 'darkCyan' }}>
+                  {selectedAntrian.number}
+                </Col>
+              </Row>
+            </>
+          ) : (
+            <>
+              <Row style={{ color: 'red', marginBottom: '1em' }}>
+                <Col span={7}>Waktu</Col>
+                <Col span={1}>:</Col>
+                <Col span={8}></Col>
+              </Row>
+              <Row style={{ marginBottom: '1em' }}>
+                <Col span={7}>Nama</Col>
+                <Col span={1}>:</Col>
+                <Col span={8}></Col>
+              </Row>
+              <Row style={{ marginBottom: '1em' }}>
+                <Col span={7}>Poli</Col>
+                <Col span={1}>:</Col>
+                <Col span={8}></Col>
+              </Row>
+              <Row style={{ marginBottom: '1em' }}>
+                <Col span={7}>Dokter</Col>
+                <Col span={1}>:</Col>
+                <Col span={8}></Col>
+              </Row>
+              <Row style={{ marginBottom: '1em' }}>
+                <Col span={7}>No. Handphone</Col>
+                <Col span={1}>:</Col>
+                <Col span={8}></Col>
+              </Row>
+              <Row style={{ marginBottom: '1em' }}>
+                <Col span={7}>No. Antrian</Col>
+                <Col span={1}>:</Col>
+                <Col span={8} style={{ color: 'darkCyan' }}></Col>
+              </Row>
+            </>
+          )}
           <Flex align="center" style={{ marginTop: '3em' }}>
             <Text
               italic
@@ -201,30 +375,35 @@ function App() {
             <Text strong>Tidak Tersedia</Text>
           </Flex>
           <Flex gap="1em" style={{ marginTop: '5em' }}>
-            <ConfigProvider
-              theme={{
-                components: {
-                  Button: {
-                    defaultBg: '#F7F7F7',
-                    defaultShadow: '0',
-                    defaultBorderColor: 'none',
-                    fontWeight: '600',
+            {selectedAntrian && selectedAntrian.status === 'tidak tersedia' && (
+              <ConfigProvider
+                theme={{
+                  components: {
+                    Button: {
+                      defaultBg: '#F7F7F7',
+                      defaultShadow: '0',
+                      defaultBorderColor: 'none',
+                      fontWeight: '600',
+                    },
                   },
-                },
-              }}
-            >
-              <Button
-                size="large"
-                style={{
-                  color: '#E38800',
-                  textAlign: 'center',
-                  width: '100%',
-                  height: '3em',
                 }}
               >
-                Batal
-              </Button>
-            </ConfigProvider>
+                <Button
+                  size="large"
+                  style={{
+                    color: '#E38800',
+                    textAlign: 'center',
+                    width: '100%',
+                    height: '3em',
+                  }}
+                  loading={loadings[0]}
+                  onClick={() => handleCancelAntrian(0)}
+                >
+                  Batal
+                </Button>
+              </ConfigProvider>
+            )}
+
             <ConfigProvider
               theme={{
                 components: {
@@ -295,7 +474,8 @@ function App() {
             ]}
           >
             <Select>
-              <Select.Option value="demo">Demo</Select.Option>
+              <Select.Option value="Poli Umum">Poli Umum</Select.Option>
+              <Select.Option value="Poli Gigi">Poli Gigi</Select.Option>
             </Select>
           </Form.Item>
           <Form.Item
